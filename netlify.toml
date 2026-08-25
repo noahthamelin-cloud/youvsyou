@@ -1,0 +1,24 @@
+# You vs You - Netlify configuration
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# No SPA catch-all here on purpose. The app keeps all view state in memory and
+# never touches the URL, so a /* redirect buys nothing and risks sitting in
+# front of the /api/state function route.
+
+# The service worker must never be served stale, or a deploy can be invisible
+# for days.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
