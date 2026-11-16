@@ -39,15 +39,26 @@ export default async () => {
     hasSavedState: false
   };
 
+  // getStore can throw on its own when Blobs is not wired up for the site, so
+  // opening the store and reading from it are reported separately.
+  let store = null;
   try {
-    const store = getStore("youvsyou");
-    const existing = await store.get("state", { type: "json" });
-    out.blobsOk = true;
-    out.hasSavedState = !!existing;
-    if (existing && existing.savedAt) out.savedAt = existing.savedAt;
+    store = getStore("youvsyou");
   } catch (err) {
     out.blobsOk = false;
-    out.blobsError = String((err && err.message) || err).slice(0, 300);
+    out.blobsError = "could not open the blob store: " + String((err && err.message) || err).slice(0, 240);
+  }
+
+  if (store) {
+    try {
+      const existing = await store.get("state", { type: "json" });
+      out.blobsOk = true;
+      out.hasSavedState = !!existing;
+      if (existing && existing.savedAt) out.savedAt = existing.savedAt;
+    } catch (err) {
+      out.blobsOk = false;
+      out.blobsError = "could not read from the blob store: " + String((err && err.message) || err).slice(0, 240);
+    }
   }
 
   return json(out);
