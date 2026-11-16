@@ -1,10 +1,14 @@
 {
   "name": "youvsyou",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "You vs You - personal workout tracker with cloud-saved progress",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
-    "@netlify/blobs": "^8.1.0"
+    "@netlify/blobs": "^11.1.9",
+    "jsdom": "^31.0.1"
   }
 }

@@ -41,7 +41,7 @@ export default async (req) => {
       const state = await store.get("state", { type: "json" });
       return json({ ok: true, state: state || null });
     } catch (err) {
-      return json({ error: "read_failed", detail: String(err) }, 500);
+      return json({ error: "read_failed", detail: String((err && err.message) || err).slice(0, 300) }, 500);
     }
   }
 
@@ -59,11 +59,16 @@ export default async (req) => {
       body.savedAt = savedAt;
       await store.setJSON("state", body);
       // Rolling daily backup. One snapshot per calendar day, so a bad write
-      // never costs you more than the current day.
-      await store.setJSON("backup-" + savedAt.slice(0, 10), body);
+      // never costs you more than the current day. A failed backup must never
+      // fail the real save, so it is caught separately.
+      try {
+        await store.setJSON("backup-" + savedAt.slice(0, 10), body);
+      } catch (backupErr) {
+        return json({ ok: true, savedAt, backupWarning: String(backupErr).slice(0, 200) });
+      }
       return json({ ok: true, savedAt });
     } catch (err) {
-      return json({ error: "write_failed", detail: String(err) }, 500);
+      return json({ error: "write_failed", detail: String((err && err.message) || err).slice(0, 300) }, 500);
     }
   }
 
