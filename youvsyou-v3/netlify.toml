@@ -1,0 +1,33 @@
+# You vs You - Netlify configuration
+
+[build]
+  # The site lives in public/. The functions directory sits OUTSIDE it on
+  # purpose: when functions are inside the publish directory Netlify can fail
+  # to register them, and /api/state then returns the static 404 page instead
+  # of JSON. That is what stopped v2 syncing.
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+
+# No SPA catch-all. The app keeps all view state in memory and never touches
+# the URL, so a /* redirect buys nothing and risks shadowing the API routes.
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
