@@ -3,7 +3,7 @@
    /api/* is never cached, so your data is always live.
    BUMP CACHE ON EVERY DEPLOY or installed phones keep the old version. */
 
-const CACHE = 'yvy-v3.1.0';
+const CACHE = 'yvy-v3.3.0';
 const SHELL = [
   './',
   'index.html',
@@ -15,6 +15,7 @@ const SHELL = [
   'exercise-meta.js',
   'app-circuits.js',
   'app-extras.js',
+  'app-export.js',
   'app.js',
   'icon.svg',
   'icon-180.png',

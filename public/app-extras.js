@@ -210,6 +210,12 @@ function renderMacros(){
       <button class="btn-primary" onclick="saveMacros()">Save today</button>
     </div>
 
+    <div class="sect-label">From your tracker</div>
+    <div class="set-card">
+      <button class="modal-btn cancel" style="width:100%" onclick="openMacroImport()">Paste an export →</button>
+      <div class="set-note">Bulk-fill days from wherever you log food. You see exactly what it read before anything saves.</div>
+    </div>
+
     <div class="sect-label">Last two weeks</div>
     ${rows ? `<div class="hist-card plain">${rows}</div>` : `<div class="hist-empty">Nothing logged yet.</div>`}
     <div style="height:40px"></div>`;
@@ -279,6 +285,7 @@ function renderHistory(){
     <div class="shead"><button class="back" onclick="backHome()">← Back</button>
       <div class="shead-meta">Your Workout Log</div></div>
     <div class="stitle">History</div>
+    <button class="sub-btn" style="margin-bottom:16px" onclick="openExport()">Export an 8-day cycle for your coach →</button>
     ${body}
     <div style="height:40px"></div>`;
 }
@@ -406,4 +413,165 @@ function renderBWGraph(){
     ${body}
     <button class="btn-primary" style="margin-top:8px" onclick="logBW()">Log today's weight +</button>
     <div style="height:40px"></div>`;
+}
+
+/* ============================================================
+   MACRO IMPORT
+   Paste an export from wherever you actually log food, preview
+   what it read, then commit. Nothing is written until you confirm,
+   because a silent import that clobbers a week of days because the
+   source changed its formatting is the failure worth preventing.
+   ============================================================ */
+
+let macroPaste = '';
+let macroParsed = null;
+
+/* Tolerant on purpose. Labels are matched by name, so field order does not
+   matter and the other end can reformat without breaking this. Anything the
+   parser cannot read is reported back rather than silently dropped. */
+function parseMacroPaste(text){
+  const rows = [], skipped = [];
+
+  String(text || '').split(/\r?\n/).forEach(line => {
+    const raw = line.trim();
+    if(!raw) return;
+    if(/^```/.test(raw)) return;                       // markdown fence
+    if(/^yvy[-\s]?macros/i.test(raw)) return;          // our header line
+    if(/^[|\s:+\-=_]+$/.test(raw)) return;             // table rule
+
+    const dm = raw.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if(!dm){ skipped.push(raw); return; }
+
+    const date = dm[1] + '-' + String(+dm[2]).padStart(2,'0') + '-' + String(+dm[3]).padStart(2,'0');
+    if(!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date)){ skipped.push(raw); return; }
+
+    const rest = raw.slice(dm.index + dm[0].length);
+    const grab = re => { const m = rest.match(re); return m ? Math.round(parseFloat(m[1])) : null; };
+
+    // Label-first ("protein: 196") is tried before number-first ("196 P").
+    // The other way round, "kcal: 2410 protein: 196" lets the protein pattern
+    // swallow "2410 protein" and record the calories as grams of protein.
+    let kcal    = grab(/(?:kcal|cal(?:ories)?)\s*[:=]\s*([\d.]+)/i) ?? grab(/([\d.]+)\s*(?:kcal|cal(?:ories)?)\b/i);
+    let protein = grab(/protein\s*[:=]\s*([\d.]+)/i)              ?? grab(/([\d.]+)\s*g?\s*(?:p\b|protein)/i);
+    let carbs   = grab(/carb\w*\s*[:=]\s*([\d.]+)/i)              ?? grab(/([\d.]+)\s*g?\s*(?:c\b|carb\w*)/i);
+    let fat     = grab(/fat\s*[:=]\s*([\d.]+)/i)                  ?? grab(/([\d.]+)\s*g?\s*(?:f\b|fat)/i);
+
+    // Fallback: a bare "date 2410 196 229 72" with no labels at all.
+    if(kcal === null && protein === null && carbs === null && fat === null){
+      const nums = (rest.match(/[\d.]+/g) || []).map(n => Math.round(parseFloat(n)));
+      if(nums.length === 4){ kcal = nums[0]; protein = nums[1]; carbs = nums[2]; fat = nums[3]; }
+      else { skipped.push(raw); return; }
+    }
+
+    const row = { date, kcal: kcal||0, protein: protein||0, carbs: carbs||0, fat: fat||0, raw };
+    if(!row.kcal && !row.protein && !row.carbs && !row.fat){ skipped.push(raw); return; }
+    rows.push(row);
+  });
+
+  // Same day twice in one paste: the later line wins, and say so.
+  const byDate = {}, dupes = [];
+  rows.forEach(r => { if(byDate[r.date]) dupes.push(r.date); byDate[r.date] = r; });
+
+  const out = Object.keys(byDate).sort().map(d => byDate[d]);
+  const t = today();
+  out.forEach(r => {
+    const cur = S.macros[r.date];
+    r.replaces = cur ? (cur.kcal || 0) : null;
+    r.future = r.date > t;
+  });
+  return { rows: out, skipped, dupes: [...new Set(dupes)] };
+}
+
+function openMacroImport(){
+  macroPaste = '';
+  macroParsed = null;
+  go('macroImport');
+}
+
+function renderMacroImport(){
+  const p = macroParsed;
+
+  let body;
+  if(!p){
+    body = `
+      <div class="set-card">
+        <div class="set-note" style="margin-top:0;margin-bottom:11px">
+          Paste the block from wherever you log your food. One line per day.
+          Nothing is saved until you have seen what it read.
+        </div>
+        <textarea class="modal-inp paste-box" id="macroPasteBox" spellcheck="false"
+          placeholder="YVY-MACROS v1&#10;2026-11-15 | 2280 kcal | 201 P | 198 C | 71 F&#10;2026-11-16 | 2410 kcal | 196 P | 229 C | 72 F">${esc(macroPaste)}</textarea>
+        <button class="btn-primary" onclick="runMacroParse()">Read it</button>
+      </div>
+      <div class="sect-label">The format</div>
+      <div class="set-card">
+        <div class="fmt-sample">2026-11-16 | 2410 kcal | 196 P | 229 C | 72 F</div>
+        <div class="set-note">Field order does not matter and labels can be spelled out
+        (<b>protein</b>, <b>carbs</b>, <b>fat</b>). A missing field counts as zero. Lines it
+        cannot read are listed back to you rather than dropped.</div>
+      </div>`;
+  } else {
+    const rows = p.rows.map(r => {
+      const d = new Date(r.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+      const bits = [];
+      if(r.protein) bits.push(r.protein+'g P');
+      if(r.carbs) bits.push(r.carbs+'g C');
+      if(r.fat) bits.push(r.fat+'g F');
+      const tag = r.replaces !== null
+        ? `<span class="imp-tag replace">replaces ${fmt(r.replaces)}</span>`
+        : `<span class="imp-tag new">new</span>`;
+      return `<div class="macro-row">
+        <div><div class="mr-day">${esc(d)} ${tag}${r.future?'<span class="imp-tag future">future</span>':''}</div>
+          <div class="mr-sub">${esc(bits.join(' · '))||'&nbsp;'}</div></div>
+        <div class="mr-kcal">${r.kcal}<small>kcal</small></div>
+      </div>`;
+    }).join('');
+
+    const willReplace = p.rows.filter(r => r.replaces !== null).length;
+
+    body = `
+      <div class="sum-stats" style="margin-bottom:14px">
+        <div class="sum-stat"><div class="sum-num">${p.rows.length}</div><div class="sum-lbl">Days read</div></div>
+        <div class="sum-stat"><div class="sum-num">${willReplace}</div><div class="sum-lbl">Overwrites</div></div>
+        <div class="sum-stat"><div class="sum-num">${p.skipped.length}</div><div class="sum-lbl">Skipped</div></div>
+      </div>
+      ${p.rows.length ? `<div class="hist-card plain">${rows}</div>`
+        : `<div class="hist-empty">Nothing readable in that paste.<br>Check the format below and try again.</div>`}
+      ${p.dupes.length ? `<div class="diag-warn">Same day listed more than once (${esc(p.dupes.join(', '))}). The last line for each day is the one kept.</div>` : ''}
+      ${p.skipped.length ? `<div class="sect-label">Lines it skipped</div>
+        <div class="set-card"><div class="skip-list">${p.skipped.slice(0,12).map(s=>`<div>${esc(s)}</div>`).join('')}
+        ${p.skipped.length>12?`<div style="color:var(--dim)">and ${p.skipped.length-12} more</div>`:''}</div></div>` : ''}
+      ${p.rows.length ? `<button class="btn-primary" style="margin-top:14px" onclick="commitMacroImport()">Import ${p.rows.length} day${p.rows.length===1?'':'s'}</button>` : ''}
+      <button class="mini-link" onclick="resetMacroImport()">Paste something else</button>`;
+  }
+
+  document.getElementById('app').innerHTML = `
+    <div class="shead"><button class="back" onclick="go('macros')">← Back</button>
+      <div class="shead-meta">Import Macros</div></div>
+    <div class="stitle">Paste from tracker</div>
+    ${body}
+    <div style="height:40px"></div>`;
+}
+
+function runMacroParse(){
+  const el = document.getElementById('macroPasteBox');
+  macroPaste = el ? el.value : '';
+  if(!macroPaste.trim()){ toast('Nothing pasted','drop the block in first','peak'); return; }
+  macroParsed = parseMacroPaste(macroPaste);
+  render();
+  window.scrollTo(0,0);
+}
+
+function resetMacroImport(){ macroParsed = null; render(); window.scrollTo(0,0); }
+
+function commitMacroImport(){
+  if(!macroParsed || !macroParsed.rows.length) return;
+  const n = macroParsed.rows.length;
+  macroParsed.rows.forEach(r => {
+    S.macros[r.date] = { kcal:r.kcal, protein:r.protein, carbs:r.carbs, fat:r.fat };
+  });
+  save();
+  macroPaste = ''; macroParsed = null;
+  go('macros');
+  toast('Imported ' + n + ' day' + (n===1?'':'s'), 'macros updated', 'green');
 }

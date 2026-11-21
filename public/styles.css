@@ -461,3 +461,52 @@
 /* --- calendar additions --- */
 .cal-cell.core .cal-dot{background:var(--peak);}
 .cal-cell.cardioday .cal-dot{background:#5ac8fa;}
+
+/* --- macro import --- */
+.paste-box{min-height:150px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:12px;line-height:1.5;white-space:pre;overflow-wrap:normal;overflow-x:auto;}
+.fmt-sample{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--win);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 11px;
+  overflow-x:auto;white-space:pre;}
+.imp-tag{display:inline-block;font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  border-radius:4px;padding:2px 5px;margin-left:6px;vertical-align:middle;}
+.imp-tag.new{background:rgba(22,240,138,.15);color:var(--win);}
+.imp-tag.replace{background:rgba(255,210,58,.15);color:var(--warn);}
+.imp-tag.future{background:rgba(138,145,160,.15);color:var(--muted);}
+.skip-list{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.7;
+  color:var(--muted);overflow-x:auto;white-space:pre;}
+
+/* --- RIR --- */
+.rir-row{display:flex;align-items:center;gap:10px;margin:11px 0 2px;}
+.rir-label{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);line-height:1.1;flex-shrink:0;}
+.rir-label small{display:block;font-size:8.5px;letter-spacing:.06em;color:var(--dim);font-weight:600;}
+.rir-chips{display:flex;gap:5px;flex:1;}
+.rir-chip{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--dim);border-radius:8px;
+  padding:7px 0;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;}
+.rir-chip.sel{background:var(--hold);border-color:var(--hold);color:#04121b;}
+
+/* --- post-workout check-in --- */
+.opt{font-family:'Inter',sans-serif;font-weight:500;font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dim);margin-left:6px;}
+.ci-block{margin-bottom:13px;}
+.ci-block:last-child{margin-bottom:0;}
+.ci-label{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.ci-label small{font-family:'Inter',sans-serif;font-weight:400;font-size:9.5px;letter-spacing:0;
+  text-transform:none;color:var(--dim);margin-left:7px;}
+.chip-row.tight{gap:5px;margin-bottom:0;}
+.chip.ci{flex:1;padding:9px 6px;font-size:11px;text-align:center;}
+
+/* --- export --- */
+.cyc-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px;}
+.cyc-tab{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:11px 13px;text-align:left;min-width:112px;}
+.cyc-tab.sel{border-color:var(--win);background:linear-gradient(160deg,#07301d,#15171c);}
+.cyc-n{display:block;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;
+  text-transform:uppercase;letter-spacing:.03em;color:var(--ink);}
+.cyc-d{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;}
+.cyc-c{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-top:3px;}
+.export-pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.55;
+  color:var(--ink);white-space:pre;overflow-x:auto;margin:0;max-height:420px;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;user-select:text;-webkit-user-select:text;}

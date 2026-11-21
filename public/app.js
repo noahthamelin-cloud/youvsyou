@@ -436,6 +436,8 @@ function render(){
   else if(view === 'circuitDone') renderCircuitDone();
   else if(view === 'cardio') renderCardio();
   else if(view === 'macros') renderMacros();
+  else if(view === 'macroImport') renderMacroImport();
+  else if(view === 'exportWorkouts') renderExport();
   else if(view === 'history') renderHistory();
   else if(view === 'bwgraph') renderBWGraph();
   else if(view === 'calendar') renderCalendar();
@@ -697,6 +699,7 @@ function renderHome(){
 
     ${bwStrip()}
     <button class="mini-link" onclick="go('history')">View workout log →</button>
+    <button class="mini-link" onclick="openExport()">Export for your coach →</button>
     <button class="mini-link" onclick="go('settings')">Settings →</button>
     <div class="footnote">${esc(P.title)} · weights in ${unit().toUpperCase()}<br>
       ${offlineMode||!pass ? 'Local only. Tap the badge up top to connect.' : 'Progress saves to the server on every change.'}</div>
@@ -1081,6 +1084,7 @@ function renderSession(){
       <div class="set-row head ${repMode?'reps-only':''}"><div></div>${repMode?'':`<div class="set-h">Weight (${unit()})</div>`}<div class="set-h">Reps</div><div></div></div>
       ${rows}
       <button class="addset" onclick="addSet(${ei})">+ Add set</button>
+      ${rirRow(name)}
       <div class="ex-result under" id="res${ei}">${resultPlaceholder(t)}</div>
     </div>`;
   });
@@ -1107,6 +1111,31 @@ function buildRow(n, repMode, e0, mr, t, name){
     ${wField}
     <input class="inp" inputmode="numeric" type="number" placeholder="${repPhFinal}" value="${e0.r != null ? e0.r : ''}" oninput="judge(this)">
     <div class="set-mark"><span class="dot"></span></div></div>`;
+}
+
+/* Reps left in the tank on the final hard working set, warm-ups excluded.
+   Optional and blank by default: one tap, no popup, no prompt to fill it in. */
+function rirRow(name){
+  const key = sessionKey();
+  const cur = (S.sessions[key] && S.sessions[key].rir) ? S.sessions[key].rir[name] : undefined;
+  const chips = [0,1,2,3,4].map(v =>
+    `<button class="rir-chip ${cur===v?'sel':''}" onclick="setRIR(decodeURIComponent('${encodeURIComponent(name)}'),${v})">${v===4?'4+':v}</button>`
+  ).join('');
+  return `<div class="rir-row">
+    <span class="rir-label">RIR<small>last hard set</small></span>
+    <div class="rir-chips">${chips}</div>
+  </div>`;
+}
+
+function setRIR(name, v){
+  const key = sessionKey();
+  S.sessions[key] = S.sessions[key] || { logged:{}, done:false, prog: prog() };
+  const sess = S.sessions[key];
+  sess.rir = sess.rir || {};
+  if(sess.rir[name] === v) delete sess.rir[name];   // tapping the same chip clears it
+  else sess.rir[name] = v;
+  save();
+  renderSession();
 }
 
 function resultPlaceholder(t){
@@ -1266,7 +1295,8 @@ function finishSession(){
     totalWork, setCount, prs, beaten, exLogged,
     exTotal: cd.exercises.length,
     label: cd.label,
-    pump: sess.pump || null
+    pump: sess.pump || null,
+    checkin: Object.assign({}, sess.checkin || {})
   };
   go('summary');
 }
@@ -1310,7 +1340,15 @@ function renderSummary(){
       ${s.prs.length ? `<div class="sect-label s5" style="margin-top:22px">★ New Peaks</div>
         <div class="pr-card s5">${prRows}</div>` : ''}
 
-      <div class="sect-label s5" style="margin-top:22px">Rate the pump</div>
+      <div class="sect-label s5" style="margin-top:22px">Check-in <span class="opt">optional</span></div>
+      <div class="set-card s5">
+        ${ciRow('Energy', 'energy', [[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5']], 'exhausted to excellent')}
+        ${ciRow('Difficulty', 'difficulty', [['easy','Easy'],['moderate','Moderate'],['hard','Hard'],['max','Maximum']])}
+        ${ciRow('Performance', 'performance', [['stronger','Stronger'],['expected','As expected'],['weaker','Weaker']])}
+        ${ciRow('Feeling after', 'feeling', [['good','Good'],['exhausted','Exhausted'],['pain','Pain / discomfort']])}
+      </div>
+
+      <div class="sect-label s5" style="margin-top:22px">Rate the pump <span class="opt">optional</span></div>
       <div class="pump-row s5">${pumpChips}</div>
 
       <button class="btn-primary s6" style="margin-top:22px" onclick="lockItIn()">Lock it in</button>
@@ -1319,7 +1357,26 @@ function renderSummary(){
     </div>`;
 }
 
-function setPump(n){ summaryData.pump = n; renderSummary(); }
+/* One tap each, nothing required. Tapping a selected chip clears it. */
+function ciRow(label, field, opts, hint){
+  const cur = (summaryData.checkin || {})[field];
+  const chips = opts.map(([v,txt]) =>
+    `<button class="chip ci ${cur===v?'sel':''}" onclick="setCheckin('${field}',${typeof v==='number'?v:`'${v}'`})">${esc(txt)}</button>`
+  ).join('');
+  return `<div class="ci-block">
+    <div class="ci-label">${esc(label)}${hint?`<small>${esc(hint)}</small>`:''}</div>
+    <div class="chip-row tight">${chips}</div>
+  </div>`;
+}
+
+function setCheckin(field, v){
+  summaryData.checkin = summaryData.checkin || {};
+  if(summaryData.checkin[field] === v) delete summaryData.checkin[field];
+  else summaryData.checkin[field] = v;
+  renderSummary();
+}
+
+function setPump(n){ summaryData.pump = (summaryData.pump === n) ? null : n; renderSummary(); }
 
 function lockItIn(){
   const s = summaryData;
@@ -1327,6 +1384,7 @@ function lockItIn(){
   sess.done = true;
   sess.finishedAt = s.endedAt;
   if(s.pump) sess.pump = s.pump;
+  if(s.checkin && Object.keys(s.checkin).length) sess.checkin = s.checkin;
   markWorkoutDay();
   touchStreak();
   save();

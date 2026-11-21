@@ -192,6 +192,33 @@ No targets and no goals, by choice. It shows today, your seven day average
 calories and protein, and the last two weeks as a list, so the pattern is visible
 without anything telling you off. Saving an empty form clears the day.
 
+### Importing from your food tracker
+
+**Paste an export** on the Macros screen bulk-fills days from wherever you
+actually log food, so you are not retyping numbers you already have.
+
+The format is one line per day:
+
+    YVY-MACROS v1
+    2026-11-16 | 2410 kcal | 196 P | 229 C | 72 F
+
+The parser is deliberately forgiving. Field order does not matter, labels can be
+spelled out (protein, carbs, fat) or written either way round (`196 P` or
+`protein: 196`), and it handles markdown tables, bullet lists, code fences and
+bare comma or tab separated numbers. A missing field counts as zero.
+
+It is strict about two things on purpose. Dates must be unambiguous, so
+`2026-11-16` is accepted and `11/16/2026` is refused rather than guessed. And a
+line of bare numbers is only read when there are exactly four of them, in the
+order calories, protein, carbs, fat; three or five is ambiguous and gets
+refused. Anything it cannot read is listed back to you rather than dropped
+silently.
+
+Nothing saves until you confirm. The preview shows every day it read, badges
+each one **new** or **replaces 2530** so an overwrite is never a surprise, flags
+future dates, and tells you if the same day appeared twice (the later line
+wins).
+
 ---
 
 ## 3. The screens
@@ -222,6 +249,9 @@ without anything telling you off. Saving an empty form clears the day.
 - **Form cue** button. Tap it for a one-liner: which muscle to focus on for
   mind-muscle connection, plus a single technique cue. Hidden by default so it is
   there when you want it and out of the way when you do not.
+- **RIR row** on each exercise: reps left in reserve on the final hard working
+  set, warm-ups excluded. Optional, blank by default, one tap. Tapping the same
+  chip again clears it. It feeds the coach export and nothing else.
 - **lbs / reps toggle** (top right of each exercise card). Flips that exercise
   between weight-and-reps and reps-only. The choice sticks for that exercise
   everywhere, forever, until you flip it back.
@@ -237,6 +267,9 @@ Appears when you finish. Shows:
 - Elapsed time, plus start and finish times
 - Number of new peaks, listed with the old number they beat
 - Sets logged, lifts completed, targets beaten
+- **Check-in**, four optional questions: energy 1-5, difficulty, performance
+  against expectation, and how you felt afterwards. One tap each, all skippable,
+  about ten seconds. Answers go into the coach export.
 - **Rate the pump** 1 to 10
 
 Nothing is committed until you tap **Lock it in**. That marks the session done,
@@ -331,6 +364,45 @@ the passcode and never any workout data.
 
 ---
 
+## 4c. Exporting for a coach
+
+**Export for your coach** on the home screen, or the button at the top of
+History. Produces one 8-day cycle as plain text, headed `YVY-WORKOUT v1`.
+
+Each cycle includes, in chronological order:
+
+- Cycle number, a stable id, and the date range
+- Every lifting day: day number, workout name, date, duration, start and finish
+- Every exercise with its planned sets and target rep range
+- Every working set, with the weight exactly as you entered it and its unit
+- RIR where you recorded it
+- The four check-in answers and the pump rating
+- Exercises that were programmed but never logged, listed as skipped
+- Recovery circuits and cardio that fall inside the cycle window
+- Bodyweight entries in the window
+- Total working sets and total work per session
+
+**Nothing is invented.** A field you never recorded is left out of the output
+rather than printed as a blank or a zero, so an absent line always means "not
+recorded" and never "zero". Weights are never converted between units either,
+so a 100 kg squat is exported as 100 kg. If a cycle contains both units, the
+header says so.
+
+**Copy export** puts the whole thing on the clipboard in one tap. If a browser
+refuses that, the preview underneath is selectable so you can copy it by hand.
+**Download as .txt** saves it as a file instead.
+
+### How cycles are worked out
+
+Sessions were never tagged with a cycle number, so cycles are reconstructed from
+the order of your training days. Walking your PPL sessions by date, a new cycle
+begins whenever the day number stops moving forward. Running Day 1 twice in a
+row reads as two cycles; skipping a day does not break the current one. Older
+cycles stay available in the picker, so you can hand over two cycles side by side
+to compare.
+
+---
+
 ## 5. The data menu
 
 Tap the sync badge at the top right of the home screen.
@@ -419,7 +491,8 @@ Worth doing a **Download a backup file** first anyway, out of habit.
 | `ppl-data.js` | The PPL 8-day rotation. |
 | `circuits-data.js` | The three guided routines. **Safe to edit by hand.** |
 | `app-circuits.js` | The timed routine engine. |
-| `app-extras.js` | Cardio, macros, history, calendar, bodyweight graph. |
+| `app-extras.js` | Cardio, macros, macro import, history, calendar, bodyweight graph. |
+| `app-export.js` | Cycle derivation and the coach export. |
 | `images/core/` | The eighteen movement images, one per filename in the routines. |
 | `netlify/functions/state.js` | The save endpoint. Reads and writes Netlify Blobs, checks the passcode. |
 | `netlify/functions/health.js` | The unauthenticated health check behind the diagnostics screen. |
@@ -474,6 +547,10 @@ exercise card in the app, which overrides the default and saves with your data.
 - Cardio is treadmill-shaped by design. Bike and elliptical reuse the same
   speed and incline fields, which is a loose fit.
 - Macros are a single daily total, not a food log. It will not add up meals.
+- The coach export covers the PPL rotation only. Foundation sessions are kept
+  and shown in History but are not part of an 8-day cycle.
+- RIR is one value per exercise, not per set, by design. It records the final
+  hard working set.
 - The PPL program is built from the structure of the 8-day plan, not from
   anyone's prescribed weights. Every target is your own logged number or your
   own old spreadsheet figure.
